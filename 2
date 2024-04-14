@@ -39,8 +39,9 @@ SKILL_IMPLEMENTATION(DirectKickOffImpl,
     (Angle)(45_deg) hysteresisAngle, /**< When sorting sectors by their opening angle, the one selected in the previous frame gets this as bonus. */
     (Angle)(60_deg) halfGoalSectorAngle, /**< Half of the goal opening angle around the positive x axis. */
     (Angle)(20_deg) minOpeningAngle, /**< The minimum opening angle a sector must have to be considered. */
+    (Angle)(180_deg) backPassAngle, /**< The angle to pass the ball back to a teammate at the start of the kickoff. */
+    (float)(1000.f) backPassDistance, /**< The distance to pass the ball back to a teammate at the start of the kickoff. */
   }),
-
 });
 
 class DirectKickOffImpl : public DirectKickOffImplBase
@@ -51,6 +52,26 @@ class DirectKickOffImpl : public DirectKickOffImplBase
     {
       theLookLeftAndRightSkill();
       theStandSkill();
+      return;
+    }
+
+    if(!backPassExecuted)
+    {
+      // Pass the ball back to a teammate
+      theGoToBallAndKickSkill(
+  Angle::normalize(backPassAngle - theRobotPose.rotation),  // targetDirection
+  KickInfo::walkForwardsRightAlternative,                  // kickType 
+  true,                                                    // lookActiveWithBall
+  KickPrecision::notPrecise,                               // alignPrecisely
+  backPassDistance,                                        // length
+  true,                                                    // preStepAllowed
+  true,                                                    // turnKickAllowed
+  false,                                                   // shiftTurnKickPose
+  Pose2f(1.f, 1.f, 1.f),                                   // speed
+  Rangea(0_deg, 0_deg)                                     // directionPrecision
+);
+
+      backPassExecuted = true;
       return;
     }
 
@@ -129,15 +150,26 @@ class DirectKickOffImpl : public DirectKickOffImplBase
     else
       kickType = KickInfo::walkForwardsLeftAlternative;
 
-    theGoToBallAndKickSkill({.targetDirection = Angle::normalize(targetAngle - theRobotPose.rotation),
-                             .kickType = kickType,
-                             .lookActiveWithBall = true});
+    theGoToBallAndKickSkill(
+  Angle::normalize(backPassAngle - theRobotPose.rotation),  // targetDirection
+  KickInfo::walkForwardsRightAlternative,                  // kickType 
+  true,                                                    // lookActiveWithBall
+  KickPrecision::notPrecise,                               // alignPrecisely
+  backPassDistance,                                        // length
+  true,                                                    // preStepAllowed
+  true,                                                    // turnKickAllowed
+  false,                                                   // shiftTurnKickPose
+  Pose2f(1.f, 1.f, 1.f),                                   // speed
+  Rangea(0_deg, 0_deg)                                     // directionPrecision
+);
+
     wasActive = true;
   }
 
   void reset(const DirectKickOff&) override
   {
     wasActive = false;
+    backPassExecuted = false;
     kickType = KickInfo::walkForwardsRightAlternative;
   }
 
@@ -156,6 +188,7 @@ class DirectKickOffImpl : public DirectKickOffImplBase
   };
 
   bool wasActive; /**< Whether an in walk kick out of the center circle was already tried. */
+  bool backPassExecuted; /**< Whether the back pass to a teammate has been executed. */
   KickInfo::KickType kickType; /**< The kick type to try. */
   Angle targetAngle; /**< The target angle to which the kick-off should go (from the ball in field coordinates). */
 };
